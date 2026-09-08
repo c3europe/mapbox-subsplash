@@ -63,10 +63,10 @@
   }
 
   map.on('load', () => {
-    // Legge direttamente il file dati.csv presente nella stessa cartella del file index.html
-    Papa.parse('./database_NEXT50.csv', {
+    Papa.parse('database_NEXT50.csv', {
       download: true,
       header: false,
+      skipEmptyLines: true,
       complete: function(results) {
         const rows = results.data;
 
@@ -74,12 +74,18 @@
           const row = rows[i];
 
           const locationName = row[1] ? row[1].trim() : '';
-          const colC = row[2];
-          const colD = row[3];
-          const colE = row[4];
+          const colC = row[2] ? row[2].trim() : '';
+          const colD = row[3] ? row[3].trim() : '';
+          const colE = row[4] ? row[4].trim() : '';
           const city = row[5] ? row[5].trim() : '';
-          const lat = parseFloat(row[6]);
-          const lng = parseFloat(row[7]);
+          
+          // Gestione virgola nei decimali delle coordinate
+          const rawLat = row[6] ? row[6].toString().replace(',', '.') : '';
+          const rawLng = row[7] ? row[7].toString().replace(',', '.') : '';
+          
+          const lat = parseFloat(rawLat);
+          const lng = parseFloat(rawLng);
+          
           const country = row[8] ? row[8].trim() : '';
           const imgUrl = row[11] ? row[11].trim() : '';
 
@@ -106,6 +112,9 @@
               .addTo(map);
           }
         }
+      },
+      error: function(err) {
+        console.error('Errore nel caricamento del CSV:', err);
       }
     });
   });
