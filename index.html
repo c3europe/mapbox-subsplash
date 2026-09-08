@@ -11,7 +11,7 @@
   <!-- PapaParse -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
-  <!-- Font Google Inter per una tipografia moderna -->
+  <!-- Font Google Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
@@ -19,10 +19,7 @@
     body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
     #map { width: 100%; height: 100vh; }
 
-    /* Personalizzazione Popup Mapbox */
-    .mapboxgl-popup {
-      z-index: 10;
-    }
+    /* Personalizzazione Popup */
     .mapboxgl-popup-content {
       padding: 0 !important;
       border-radius: 16px !important;
@@ -30,11 +27,185 @@
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
       border: 1px solid rgba(255, 255, 255, 0.8);
       overflow: hidden;
-      backdrop-filter: blur(8px);
     }
     .mapboxgl-popup-close-button {
       color: #ffffff;
       font-size: 18px;
+      padding: 6px 10px;
+      z-index: 2;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+    .mapboxgl-popup-close-button:hover {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Card Popup */
+    .popup-card {
+      display: flex;
+      flex-direction: column;
+      background: #ffffff;
+    }
+    .popup-img-wrapper {
+      width: 100%;
+      height: 130px;
+      background-color: #f3f4f6;
+    }
+    .popup-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .popup-body {
+      padding: 14px 16px;
+    }
+    .popup-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      margin: 0 0 4px 0;
+      line-height: 1.3;
+    }
+    .popup-location {
+      font-size: 12px;
+      font-weight: 500;
+      color: #6b7280;
+    }
+
+    /* Pin animati */
+    .custom-marker {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 3px solid #ffffff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .custom-marker:hover {
+      transform: scale(1.3);
+      z-index: 5;
+    }
+
+    /* Legenda */
+    .map-legend {
+      position: absolute;
+      bottom: 24px;
+      left: 16px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 10px 14px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      border: 1px solid rgba(229, 231, 235, 0.8);
+      font-size: 12px;
+      font-weight: 500;
+      color: #374151;
+      display: flex;
+      gap: 12px;
+      z-index: 1;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="map-legend">
+  <div class="legend-item"><span class="legend-color" style="background: #2563eb;"></span> Opzione C</div>
+  <div class="legend-item"><span class="legend-color" style="background: #eab308;"></span> Opzione D</div>
+  <div class="legend-item"><span class="legend-color" style="background: #10b981;"></span> Opzione E</div>
+</div>
+
+<script>
+  mapboxgl.accessToken = 'pk.eyJ1IjoiYzNldXJvcGUiLCJhIjoiY210c2x6c3M4MDBmYjJ5c2hkbGk3MTJsNSJ9.r-mcV9eA6pvHoK1-Hqr-3A';
+
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/light-v11',
+    center: [15.0, 50.0],
+    zoom: 3.8
+  });
+
+  map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+
+  function getMarkerColor(colC, colD, colE) {
+    if (colC && colC.trim().toUpperCase() === 'Y') return '#2563eb';
+    if (colD && colD.trim().toUpperCase() === 'Y') return '#eab308';
+    if (colE && colE.trim().toUpperCase() === 'Y') return '#10b981';
+    return '#9ca3af';
+  }
+
+  map.on('load', () => {
+    Papa.parse('database_NEXT50.csv', {
+      download: true,
+      header: false,
+      skipEmptyLines: true,
+      complete: function(results) {
+        const rows = results.data;
+
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+
+          const locationName = row[1] ? row[1].trim() : '';
+          const colC = row[2] ? row[2].trim() : '';
+          const colD = row[3] ? row[3].trim() : '';
+          const colE = row[4] ? row[4].trim() : '';
+          const city = row[5] ? row[5].trim() : '';
+          
+          const rawLat = row[6] ? row[6].toString().replace(',', '.') : '';
+          const rawLng = row[7] ? row[7].toString().replace(',', '.') : '';
+          
+          const lat = parseFloat(rawLat);
+          const lng = parseFloat(rawLng);
+          
+          const country = row[8] ? row[8].trim() : '';
+          const imgUrl = row[11] ? row[11].trim() : '';
+
+          if (!isNaN(lat) && !isNaN(lng)) {
+            const pinColor = getMarkerColor(colC, colD, colE);
+
+            const el = document.createElement('div');
+            el.className = 'custom-marker';
+            el.style.backgroundColor = pinColor;
+
+            let popupContent = '<div class="popup-card">';
+            if (imgUrl) {
+              popupContent += `<div class="popup-img-wrapper"><img src="${imgUrl}" alt="${city}" class="popup-img" /></div>`;
+            }
+            popupContent += '<div class="popup-body">';
+            if (locationName) {
+              popupContent += `<div class="popup-title">${locationName}</div>`;
+            }
+            if (city || country) {
+              popupContent += `<div class="popup-location">📍 ${city}${city && country ? ', ' : ''}${country}</div>`;
+            }
+            popupContent += '</div></div>';
+
+            const popup = new mapboxgl.Popup({ offset: 15, closeButton: true }).setHTML(popupContent);
+
+            new mapboxgl.Marker(el)
+              .setLngLat([lng, lat])
+              .setPopup(popup)
+              .addTo(map);
+          }
+        }
+      }
+    });
+  });
+</script>
+
+</body>
+</html>      font-size: 18px;
       padding: 6px 10px;
       z-index: 2;
       text-shadow: 0 1px 3px rgba(0,0,0,0.5);
