@@ -35,8 +35,12 @@
       z-index: 2;
       text-shadow: 0 1px 3px rgba(0,0,0,0.5);
     }
+    
+/* Rimuove lo sfondo grigio e l'ombra dietro la X al passaggio del mouse */
     .mapboxgl-popup-close-button:hover {
-      background: rgba(0, 0, 0, 0.2);
+      background-color: transparent !important;
+      color: #ffffff; /* Mantiene il colore bianco della X */
+      opacity: 0.8;   /* Opzionale: un leggero cambio di opacità per il feedback visivo */
     }
     
     /* Card Popup */
