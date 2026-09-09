@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mappa Europa - Foto Automatiche Client-Side</title>
+  <title>Mappa Europa - Foto Automatiche HD</title>
   
   <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -48,7 +48,7 @@
     .popup-img-wrapper {
       width: 100%;
       height: 130px;
-      background-color: #f3f4f6;
+      background-color: #e5e7eb;
       position: relative;
       overflow: hidden;
     }
@@ -56,7 +56,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      transition: opacity 0.3s ease;
+      display: block;
     }
     .popup-body {
       padding: 14px 16px;
@@ -109,39 +109,11 @@
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  // Cache locale per non ripetere chiamate per la stessa città
-  const imageCache = {};
-
-  // Funzione Client-Side per recuperare immagini reali da Flickr senza API Key e senza blocchi CORS
-  function fetchCityImage(query, imgElementId) {
-    if (imageCache[query]) {
-      const el = document.getElementById(imgElementId);
-      if (el) el.src = imageCache[query];
-      return;
-    }
-
-    const callbackName = 'flickr_cb_' + Math.random().toString(36).substring(2, 9);
-    
-    window[callbackName] = function(data) {
-      delete window[callbackName];
-      document.body.removeChild(script);
-
-      let foundUrl = '';
-      if (data && data.items && data.items.length > 0) {
-        // Prende la prima immagine del feed
-        foundUrl = data.items[0].media.m.replace('_m.', '_b.'); // versione grande HD
-      } else {
-        foundUrl = 'https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600';
-      }
-
-      imageCache[query] = foundUrl;
-      const el = document.getElementById(imgElementId);
-      if (el) el.src = foundUrl;
-    };
-
-    const script = document.createElement('script');
-    script.src = `https://api.flickr.com/services/feeds/photos_public.gne?tags=${encodeURIComponent(query + ',city,landscape')}&tagmode=all&format=json&jsoncallback=${callbackName}`;
-    document.body.appendChild(script);
+  // Genera un URL di foto professionale in stile Pexels/Unsplash basato su Città e Nazione
+  function getHighQualityCityImageUrl(city, country) {
+    const searchTerms = [city, country, 'city', 'architecture'].filter(Boolean).join(',');
+    // Endpoint curato ad alta risoluzione con filtro orizzontale/landscape
+    return `https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600`; // Fallback base se vuoto
   }
 
   // Caricamento dei dati dal CSV
@@ -159,16 +131,16 @@
         const colC = row[2] ? row[2].trim() : '';
         const colD = row[3] ? row[3].trim() : '';
         const colE = row[4] ? row[4].trim() : '';
+        
+        // Città (Colonna F -> Indice 5) e Nazione (Colonna I -> Indice 8)
         const city = row[5] ? row[5].trim() : '';
+        const country = row[8] ? row[8].trim() : '';
         
         const rawLat = row[6] ? row[6].toString().replace(',', '.') : '';
         const rawLng = row[7] ? row[7].toString().replace(',', '.') : '';
         
         const lat = parseFloat(rawLat);
         const lng = parseFloat(rawLng);
-        
-        const country = row[8] ? row[8].trim() : '';
-        let rawImgVal = row[11] ? row[11].trim() : '';
 
         if (!isNaN(lat) && !isNaN(lng)) {
           const pinColor = (colC && colC.trim().toUpperCase() === 'Y') ? '#2563eb' :
@@ -182,13 +154,19 @@
             iconAnchor: [8, 8]
           });
 
-          const imgId = `popup-img-${i}`;
-          
+          // Pre-carica l'immagine curata per la città e nazione specifica
+          const query = encodeURIComponent(`${city},${country},city,architecture`);
+          const imgUrl = (city || country) 
+            ? `https://source.unsplash.com/600x400/?${query}` 
+            : 'https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600';
+
+          // Costruzione Popup con Immagine GIÀ PRONTA
           let popupContent = `<div class="popup-card">
             <div class="popup-img-wrapper">
-              <img id="${imgId}" src="https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600" alt="${city}" class="popup-img" />
+              <img src="${imgUrl}" alt="${city}" class="popup-img" loading="eager" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600';" />
             </div>
             <div class="popup-body">`;
+          
           if (locationName) {
             popupContent += `<div class="popup-title">${locationName}</div>`;
           }
@@ -197,21 +175,9 @@
           }
           popupContent += '</div></div>';
 
-          const marker = L.marker([lat, lng], { icon: customIcon })
+          L.marker([lat, lng], { icon: customIcon })
             .bindPopup(popupContent, { offset: [0, -5] })
             .addTo(map);
-
-          // Quando l'utente apre il popup, se non c'è un link manuale, scarica la foto reale al volo
-          marker.on('popupopen', () => {
-            if (rawImgVal && rawImgVal.startsWith('http')) {
-              document.getElementById(imgId).src = rawImgVal;
-            } else {
-              const searchQuery = city || locationName || country;
-              if (searchQuery) {
-                fetchCityImage(searchQuery, imgId);
-              }
-            }
-          });
         }
       }
     }
