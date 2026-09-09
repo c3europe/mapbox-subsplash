@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mappa Europa - Standard Mode</title>
+  <title>Mappa Europa - OpenStreetMap</title>
   
-  <!-- Mapbox GL JS -->
-  <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
-  <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
   <!-- PapaParse -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
@@ -16,32 +17,27 @@
 
   <style>
     * { box-sizing: border-box; }
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #f4f4f5; }
-    #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #e5e7eb; }
+    #map { width: 100vw; height: 100vh; }
 
-    /* Personalizzazione Popup per Tema Standard */
-    .mapboxgl-popup-content {
+    /* Personalizzazione Popup Leaflet */
+    .leaflet-popup-content-wrapper {
       padding: 0 !important;
       border-radius: 16px !important;
       max-width: 260px !important;
       background: #ffffff !important;
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2) !important;
-      border: 1px solid rgba(0, 0, 0, 0.08);
       overflow: hidden;
     }
-
-    .mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: #ffffff !important; }
-    .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: #ffffff !important; }
-    .mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: #ffffff !important; }
-    .mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: #ffffff !important; }
-    
-    .mapboxgl-popup-close-button {
-      color: #374151;
-      font-size: 18px;
-      padding: 6px 10px;
-      z-index: 2;
-      background-color: transparent;
-      border: none;
+    .leaflet-popup-content {
+      margin: 0 !important;
+      line-height: 1.4 !important;
+    }
+    .leaflet-container a.leaflet-popup-close-button {
+      color: #374151 !important;
+      font-size: 18px !important;
+      padding: 6px 10px 0 0 !important;
+      z-index: 10;
     }
 
     .popup-card {
@@ -52,7 +48,7 @@
     .popup-img-wrapper {
       width: 100%;
       height: 130px;
-      background-color: #e5e7eb;
+      background-color: #f3f4f6;
     }
     .popup-img {
       width: 100%;
@@ -75,18 +71,22 @@
       color: #6b7280;
     }
 
-    .custom-marker {
-      width: 14px;
-      height: 14px;
+    /* Pin Personalizzati */
+    .custom-div-icon {
+      background: transparent;
+      border: none;
+    }
+    .marker-pin {
+      width: 16px;
+      height: 16px;
       border-radius: 50%;
       border: 2px solid #ffffff;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
       cursor: pointer;
       transition: transform 0.2s ease;
     }
-    .custom-marker:hover {
-      transform: scale(1.4);
-      z-index: 5;
+    .marker-pin:hover {
+      transform: scale(1.3);
     }
   </style>
 </head>
@@ -95,86 +95,81 @@
 <div id="map"></div>
 
 <script>
-  mapboxgl.accessToken = 'pk.eyJ1IjoiYzNldXJvcGUiLCJhIjoiY210c2x6c3M4MDBmYjJ5c2hkbGk3MTJsNSJ9.r-mcV9eA6pvHoK1-Hqr-3A';
-
   const googleSheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
 
-  // Mappa Standard Mapbox Streets
-  const map = new mapboxgl.Map({
-    container: 'map',
-    style: 'mapbox://styles/mapbox/streets-v12',
-    center: [15.0, 50.0],
-    zoom: 3.8
-  });
+  // Inizializza mappa Leaflet su coordinate Europa
+  const map = L.map('map', {
+    zoomControl: false
+  }).setView([50.0, 15.0], 4);
 
-  map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+  // Aggiungi controlli zoom in alto a destra
+  L.control.zoom({ position: 'topright' }).addTo(map);
 
-  map.on('load', () => {
-    map.resize();
+  // Layer OpenStreetMap Standard HD - Gratis e infallibile
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
 
-    Papa.parse(googleSheetCsvUrl, {
-      download: true,
-      header: false,
-      skipEmptyLines: true,
-      complete: function(results) {
-        const rows = results.data;
+  // Caricamento dei dati dal CSV
+  Papa.parse(googleSheetCsvUrl, {
+    download: true,
+    header: false,
+    skipEmptyLines: true,
+    complete: function(results) {
+      const rows = results.data;
 
-        for (let i = 1; i < rows.length; i++) {
-          const row = rows[i];
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
 
-          const locationName = row[1] ? row[1].trim() : '';
-          const colC = row[2] ? row[2].trim() : '';
-          const colD = row[3] ? row[3].trim() : '';
-          const colE = row[4] ? row[4].trim() : '';
-          const city = row[5] ? row[5].trim() : '';
-          
-          const rawLat = row[6] ? row[6].toString().replace(',', '.') : '';
-          const rawLng = row[7] ? row[7].toString().replace(',', '.') : '';
-          
-          const lat = parseFloat(rawLat);
-          const lng = parseFloat(rawLng);
-          
-          const country = row[8] ? row[8].trim() : '';
-          let imgUrl = row[11] ? row[11].trim() : '';
+        const locationName = row[1] ? row[1].trim() : '';
+        const colC = row[2] ? row[2].trim() : '';
+        const colD = row[3] ? row[3].trim() : '';
+        const colE = row[4] ? row[4].trim() : '';
+        const city = row[5] ? row[5].trim() : '';
+        
+        const rawLat = row[6] ? row[6].toString().replace(',', '.') : '';
+        const rawLng = row[7] ? row[7].toString().replace(',', '.') : '';
+        
+        const lat = parseFloat(rawLat);
+        const lng = parseFloat(rawLng);
+        
+        const country = row[8] ? row[8].trim() : '';
+        let imgUrl = row[11] ? row[11].trim() : '';
 
-          if (!imgUrl || !imgUrl.startsWith('http')) {
-            imgUrl = 'https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600';
+        if (!imgUrl || !imgUrl.startsWith('http')) {
+          imgUrl = 'https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600';
+        }
+
+        if (!isNaN(lat) && !isNaN(lng)) {
+          const pinColor = (colC && colC.trim().toUpperCase() === 'Y') ? '#2563eb' :
+                           (colD && colD.trim().toUpperCase() === 'Y') ? '#d97706' :
+                           (colE && colE.trim().toUpperCase() === 'Y') ? '#059669' : '#4b5563';
+
+          const customIcon = L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div class="marker-pin" style="background-color: ${pinColor};"></div>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          });
+
+          let popupContent = `<div class="popup-card">
+            <div class="popup-img-wrapper"><img src="${imgUrl}" alt="${city}" class="popup-img" /></div>
+            <div class="popup-body">`;
+          if (locationName) {
+            popupContent += `<div class="popup-title">${locationName}</div>`;
           }
-
-          if (!isNaN(lat) && !isNaN(lng)) {
-            const pinColor = (colC && colC.trim().toUpperCase() === 'Y') ? '#2563eb' :
-                             (colD && colD.trim().toUpperCase() === 'Y') ? '#d97706' :
-                             (colE && colE.trim().toUpperCase() === 'Y') ? '#059669' : '#4b5563';
-
-            const el = document.createElement('div');
-            el.className = 'custom-marker';
-            el.style.backgroundColor = pinColor;
-
-            let popupContent = `<div class="popup-card">
-              <div class="popup-img-wrapper"><img src="${imgUrl}" alt="${city}" class="popup-img" /></div>
-              <div class="popup-body">`;
-            if (locationName) {
-              popupContent += `<div class="popup-title">${locationName}</div>`;
-            }
-            if (city || country) {
-              popupContent += `<div class="popup-location">📍 ${city}${city && country ? ', ' : ''}${country}</div>`;
-            }
-            popupContent += '</div></div>';
-
-            const popup = new mapboxgl.Popup({ offset: 12, closeButton: true }).setHTML(popupContent);
-
-            new mapboxgl.Marker(el)
-              .setLngLat([lng, lat])
-              .setPopup(popup)
-              .addTo(map);
+          if (city || country) {
+            popupContent += `<div class="popup-location">📍 ${city}${city && country ? ', ' : ''}${country}</div>`;
           }
+          popupContent += '</div></div>';
+
+          L.marker([lat, lng], { icon: customIcon })
+            .bindPopup(popupContent, { offset: [0, -5] })
+            .addTo(map);
         }
       }
-    });
-  });
-
-  window.addEventListener('resize', () => {
-    map.resize();
+    }
   });
 </script>
 
