@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mappa Europa - Foto Instantanee</title>
+  <title>Mappa Europa - Foto per Città</title>
   
   <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -35,6 +35,188 @@
     }
     .leaflet-container a.leaflet-popup-close-button {
       color: #374151 !important;
+      font-size: 18px !important;
+      padding: 6px 10px 0 0 !important;
+      z-index: 10;
+    }
+
+    .popup-card {
+      display: flex;
+      flex-direction: column;
+      background: #ffffff;
+    }
+    .popup-img-wrapper {
+      width: 100%;
+      height: 130px;
+      background-color: #e5e7eb;
+      position: relative;
+      overflow: hidden;
+    }
+    .popup-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .popup-body {
+      padding: 14px 16px;
+    }
+    .popup-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      margin: 0 0 4px 0;
+      line-height: 1.3;
+    }
+    .popup-location {
+      font-size: 12px;
+      font-weight: 500;
+      color: #6b7280;
+    }
+
+    /* Pin Personalizzati */
+    .custom-div-icon {
+      background: transparent;
+      border: none;
+    }
+    .marker-pin {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    .marker-pin:hover {
+      transform: scale(1.3);
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+  const googleSheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
+
+  // Fallback se la città non restituisce immagini
+  const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600';
+
+  // Inizializza mappa Leaflet
+  const map = L.map('map', { zoomControl: false }).setView([50.0, 15.0], 4);
+  L.control.zoom({ position: 'topright' }).addTo(map);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Mappa di cache per evitare di ricreare la richiesta se ci sono più pin nella stessa città
+  const imageCache = {};
+
+  // Ottiene l'immagine specifica per la città usando il feed di Flickr Public API (senza API Key)
+  function getCityImage(city) {
+    if (!city) return Promise.resolve(DEFAULT_IMAGE);
+    const cleanCity = city.trim();
+    if (imageCache[cleanCity]) return Promise.resolve(imageCache[cleanCity]);
+
+    return new Promise((resolve) => {
+      const callbackName = 'flickr_cb_' + Math.random().toString(36).substring(2, 10);
+      const script = document.createElement('script');
+      
+      window[callbackName] = function(data) {
+        delete window[callbackName];
+        document.body.removeChild(script);
+        if (data && data.items && data.items.length > 0) {
+          // Prende la prima foto valida trovata per la città
+          const imageUrl = data.items[0].media.m.replace('_m.', '_b.'); // versione ad alta risoluzione
+          imageCache[cleanCity] = imageUrl;
+          resolve(imageUrl);
+        } else {
+          resolve(DEFAULT_IMAGE);
+        }
+      };
+
+      script.onerror = function() {
+        delete window[callbackName];
+        if (script.parentNode) document.body.removeChild(script);
+        resolve(DEFAULT_IMAGE);
+      };
+
+      // Usa solo la Città come tag di ricerca
+      script.src = `https://www.flickr.com/services/feeds/photos_public.gne?tags=${encodeURIComponent(cleanCity)}&tagmode=any&format=json&jsoncallback=${callbackName}`;
+      document.body.appendChild(script);
+    });
+  }
+
+  // Caricamento del CSV
+  Papa.parse(googleSheetCsvUrl, {
+    download: true,
+    header: false,
+    skipEmptyLines: true,
+    complete: async function(results) {
+      const rows = results.data;
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+
+        const locationName = row[1] ? row[1].trim() : '';
+        const colC = row[2] ? row[2].trim() : '';
+        const colD = row[3] ? row[3].trim() : '';
+        const colE = row[4] ? row[4].trim() : '';
+        
+        // Città (Colonna F -> Indice 5)
+        const city = row[5] ? row[5].trim() : '';
+        // Nazione (Colonna I -> Indice 8) per l'etichetta del testo
+        const country = row[8] ? row[8].trim() : '';
+        
+        const rawLat = row[6] ? row[6].toString().replace(',', '.') : '';
+        const rawLng = row[7] ? row[7].toString().replace(',', '.') : '';
+        
+        const lat = parseFloat(rawLat);
+        const lng = parseFloat(rawLng);
+
+        if (!isNaN(lat) && !isNaN(lng)) {
+          const pinColor = (colC && colC.trim().toUpperCase() === 'Y') ? '#2563eb' :
+                           (colD && colD.trim().toUpperCase() === 'Y') ? '#d97706' :
+                           (colE && colE.trim().toUpperCase() === 'Y') ? '#059669' : '#4b5563';
+
+          const customIcon = L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div class="marker-pin" style="background-color: ${pinColor};"></div>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          });
+
+          // Recupera l'immagine basata UNICAMENTE sulla città (Colonna F)
+          const imageUrl = await getCityImage(city);
+
+          let popupContent = `<div class="popup-card">
+            <div class="popup-img-wrapper">
+              <img src="${imageUrl}" alt="${city}" class="popup-img" onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}';" />
+            </div>
+            <div class="popup-body">`;
+          
+          if (locationName) {
+            popupContent += `<div class="popup-title">${locationName}</div>`;
+          }
+          if (city || country) {
+            popupContent += `<div class="popup-location">📍 ${city}${city && country ? ', ' : ''}${country}</div>`;
+          }
+          popupContent += '</div></div>';
+
+          L.marker([lat, lng], { icon: customIcon })
+            .bindPopup(popupContent, { offset: [0, -5] })
+            .addTo(map);
+        }
+      }
+    }
+  });
+</script>
+
+</body>
+</html>      color: #374151 !important;
       font-size: 18px !important;
       padding: 6px 10px 0 0 !important;
       z-index: 10;
