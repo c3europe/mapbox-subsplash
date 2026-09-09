@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mappa Europa - Foto Automatiche HD</title>
+  <title>Mappa Europa - Foto Instantanee</title>
   
   <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -109,14 +109,29 @@
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  // Genera un URL di foto professionale in stile Pexels/Unsplash basato su Città e Nazione
-  function getHighQualityCityImageUrl(city, country) {
-    const searchTerms = [city, country, 'city', 'architecture'].filter(Boolean).join(',');
-    // Endpoint curato ad alta risoluzione con filtro orizzontale/landscape
-    return `https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600`; // Fallback base se vuoto
+  // Pulisce le stringhe per i tag di ricerca
+  function cleanTag(str) {
+    return str ? str.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
   }
 
-  // Caricamento dei dati dal CSV
+  // Genera un URL immagine dinamico basato su tag specifici
+  function buildDirectImageUrl(city, country) {
+    const cityTag = cleanTag(city);
+    const countryTag = cleanTag(country);
+
+    // Costruzione query con i tag trovati
+    let tags = [];
+    if (cityTag) tags.push(cityTag);
+    if (countryTag) tags.push(countryTag);
+    tags.push('city', 'architecture');
+
+    const tagString = tags.join(',');
+    
+    // Genera l'URL diretto tramite LoremFlickr senza chiamate API intermedie
+    return `https://loremflickr.com/600/400/${tagString}/all`;
+  }
+
+  // Caricamento del CSV
   Papa.parse(googleSheetCsvUrl, {
     download: true,
     header: false,
@@ -154,16 +169,12 @@
             iconAnchor: [8, 8]
           });
 
-          // Pre-carica l'immagine curata per la città e nazione specifica
-          const query = encodeURIComponent(`${city},${country},city,architecture`);
-          const imgUrl = (city || country) 
-            ? `https://source.unsplash.com/600x400/?${query}` 
-            : 'https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600';
+          // URL immagine istantaneo
+          const imageUrl = buildDirectImageUrl(city, country);
 
-          // Costruzione Popup con Immagine GIÀ PRONTA
           let popupContent = `<div class="popup-card">
             <div class="popup-img-wrapper">
-              <img src="${imgUrl}" alt="${city}" class="popup-img" loading="eager" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600';" />
+              <img src="${imageUrl}" alt="${city}" class="popup-img" loading="eager" onerror="this.onerror=null;this.src='https://loremflickr.com/600/400/city';" />
             </div>
             <div class="popup-body">`;
           
