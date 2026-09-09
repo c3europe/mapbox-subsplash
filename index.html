@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mappa Europa - Foto Paesaggistiche</title>
+  <title>Mappa Europa - OpenStreetMap</title>
   
   <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -20,7 +20,7 @@
     body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #e5e7eb; }
     #map { width: 100vw; height: 100vh; }
 
-    /* Popup Leaflet */
+    /* Personalizzazione Popup Leaflet */
     .leaflet-popup-content-wrapper {
       padding: 0 !important;
       border-radius: 16px !important;
@@ -48,15 +48,12 @@
     .popup-img-wrapper {
       width: 100%;
       height: 130px;
-      background-color: #e5e7eb;
-      position: relative;
-      overflow: hidden;
+      background-color: #f3f4f6;
     }
     .popup-img {
       width: 100%;
       height: 100%;
       object-fit: cover;
-      display: block;
     }
     .popup-body {
       padding: 14px 16px;
@@ -100,89 +97,26 @@
 <script>
   const googleSheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
 
-  // Fallback paesaggistico generico
-  const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600';
+  // Inizializza mappa Leaflet su coordinate Europa
+  const map = L.map('map', {
+    zoomControl: false
+  }).setView([50.0, 15.0], 4);
 
-  // Inizializza mappa Leaflet
-  const map = L.map('map', { zoomControl: false }).setView([50.0, 15.0], 4);
+  // Aggiungi controlli zoom in alto a destra
   L.control.zoom({ position: 'topright' }).addTo(map);
 
+  // Layer OpenStreetMap Standard HD - Gratis e infallibile
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  const imageCache = {};
-
-  // Esegue una chiamata singola aggiungendo le parole chiave per forzare foto paesaggistiche
-  function fetchFlickrQuery(queryTerm) {
-    return new Promise((resolve) => {
-      const callbackName = 'flickr_cb_' + Math.random().toString(36).substring(2, 10);
-      const script = document.createElement('script');
-      
-      window[callbackName] = function(data) {
-        delete window[callbackName];
-        if (script.parentNode) document.body.removeChild(script);
-        
-        if (data && data.items && data.items.length > 0) {
-          // Seleziona la prima foto valida e la converte in alta risoluzione (_b.jpg)
-          const imageUrl = data.items[0].media.m.replace('_m.', '_b.');
-          resolve(imageUrl);
-        } else {
-          resolve(null);
-        }
-      };
-
-      script.onerror = function() {
-        delete window[callbackName];
-        if (script.parentNode) document.body.removeChild(script);
-        resolve(null);
-      };
-
-      // Query mirata a paesaggi e skyline
-      const tags = `${queryTerm},landscape,skyline,panorama`;
-      script.src = `https://www.flickr.com/services/feeds/photos_public.gne?tags=${encodeURIComponent(tags)}&tagmode=all&format=json&jsoncallback=${callbackName}`;
-      document.body.appendChild(script);
-    });
-  }
-
-  // Logica di ricerca a cascata: Città -> Nazione -> Fallback
-  async function getLandscapeImage(city, country) {
-    const cleanCity = city ? city.trim() : '';
-    const cleanCountry = country ? country.trim() : '';
-    const cacheKey = `${cleanCity}_${cleanCountry}`;
-
-    if (imageCache[cacheKey]) return imageCache[cacheKey];
-
-    // 1. Prova prima con la Città (Colonna F)
-    if (cleanCity) {
-      const cityImg = await fetchFlickrQuery(cleanCity);
-      if (cityImg) {
-        imageCache[cacheKey] = cityImg;
-        return cityImg;
-      }
-    }
-
-    // 2. Se non trova la città, sposta la ricerca sulla Nazione (Colonna I)
-    if (cleanCountry) {
-      const countryImg = await fetchFlickrQuery(cleanCountry);
-      if (countryImg) {
-        imageCache[cacheKey] = countryImg;
-        return countryImg;
-      }
-    }
-
-    // 3. Fallback di sicurezza se non trova nulla
-    imageCache[cacheKey] = DEFAULT_IMAGE;
-    return DEFAULT_IMAGE;
-  }
-
-  // Caricamento del CSV
+  // Caricamento dei dati dal CSV
   Papa.parse(googleSheetCsvUrl, {
     download: true,
     header: false,
     skipEmptyLines: true,
-    complete: async function(results) {
+    complete: function(results) {
       const rows = results.data;
 
       for (let i = 1; i < rows.length; i++) {
@@ -192,17 +126,20 @@
         const colC = row[2] ? row[2].trim() : '';
         const colD = row[3] ? row[3].trim() : '';
         const colE = row[4] ? row[4].trim() : '';
-        
-        // Città (Colonna F -> Indice 5)
         const city = row[5] ? row[5].trim() : '';
-        // Nazione (Colonna I -> Indice 8)
-        const country = row[8] ? row[8].trim() : '';
         
         const rawLat = row[6] ? row[6].toString().replace(',', '.') : '';
         const rawLng = row[7] ? row[7].toString().replace(',', '.') : '';
         
         const lat = parseFloat(rawLat);
         const lng = parseFloat(rawLng);
+        
+        const country = row[8] ? row[8].trim() : '';
+        let imgUrl = row[11] ? row[11].trim() : '';
+
+        if (!imgUrl || !imgUrl.startsWith('http')) {
+          imgUrl = 'https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600';
+        }
 
         if (!isNaN(lat) && !isNaN(lng)) {
           const pinColor = (colC && colC.trim().toUpperCase() === 'Y') ? '#2563eb' :
@@ -216,15 +153,9 @@
             iconAnchor: [8, 8]
           });
 
-          // Recupera l'immagine paesaggistica con fallback su Nazione
-          const imageUrl = await getLandscapeImage(city, country);
-
           let popupContent = `<div class="popup-card">
-            <div class="popup-img-wrapper">
-              <img src="${imageUrl}" alt="${city || country}" class="popup-img" onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}';" />
-            </div>
+            <div class="popup-img-wrapper"><img src="${imgUrl}" alt="${city}" class="popup-img" /></div>
             <div class="popup-body">`;
-          
           if (locationName) {
             popupContent += `<div class="popup-title">${locationName}</div>`;
           }
