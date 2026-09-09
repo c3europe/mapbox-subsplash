@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mappa Europa - Dark Mode</title>
+  <title>Mappa Europa - Standard Mode</title>
   
   <!-- Mapbox GL JS -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
@@ -16,31 +16,30 @@
 
   <style>
     * { box-sizing: border-box; }
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #09090b; }
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #f4f4f5; }
     #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
 
-    /* Personalizzazione Popup per Tema Scuro */
+    /* Personalizzazione Popup per Tema Standard */
     .mapboxgl-popup-content {
       padding: 0 !important;
       border-radius: 16px !important;
       max-width: 260px !important;
-      background: #18181b !important;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7) !important;
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #ffffff !important;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2) !important;
+      border: 1px solid rgba(0, 0, 0, 0.08);
       overflow: hidden;
     }
 
-    .mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: #18181b !important; }
-    .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: #18181b !important; }
-    .mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: #18181b !important; }
-    .mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: #18181b !important; }
+    .mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: #ffffff !important; }
+    .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: #ffffff !important; }
+    .mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: #ffffff !important; }
+    .mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: #ffffff !important; }
     
     .mapboxgl-popup-close-button {
-      color: #ffffff;
+      color: #374151;
       font-size: 18px;
       padding: 6px 10px;
       z-index: 2;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
       background-color: transparent;
       border: none;
     }
@@ -48,12 +47,12 @@
     .popup-card {
       display: flex;
       flex-direction: column;
-      background: #18181b;
+      background: #ffffff;
     }
     .popup-img-wrapper {
       width: 100%;
       height: 130px;
-      background-color: #27272a;
+      background-color: #e5e7eb;
     }
     .popup-img {
       width: 100%;
@@ -66,14 +65,14 @@
     .popup-title {
       font-size: 15px;
       font-weight: 700;
-      color: #ffffff;
+      color: #111827;
       margin: 0 0 4px 0;
       line-height: 1.3;
     }
     .popup-location {
       font-size: 12px;
       font-weight: 500;
-      color: #a1a1aa;
+      color: #6b7280;
     }
 
     .custom-marker {
@@ -81,7 +80,7 @@
       height: 14px;
       border-radius: 50%;
       border: 2px solid #ffffff;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
       cursor: pointer;
       transition: transform 0.2s ease;
     }
@@ -100,20 +99,18 @@
 
   const googleSheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
 
+  // Mappa Standard Mapbox Streets
   const map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/dark-v11',
+    style: 'mapbox://styles/mapbox/streets-v12',
     center: [15.0, 50.0],
     zoom: 3.8
   });
 
   map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
 
-  // Forza il ricalcolo del canvas al caricamento e al ridimensionamento
   map.on('load', () => {
-    setTimeout(() => {
-      map.resize();
-    }, 200);
+    map.resize();
 
     Papa.parse(googleSheetCsvUrl, {
       download: true,
@@ -145,9 +142,9 @@
           }
 
           if (!isNaN(lat) && !isNaN(lng)) {
-            const pinColor = (colC && colC.trim().toUpperCase() === 'Y') ? '#3b82f6' :
-                             (colD && colD.trim().toUpperCase() === 'Y') ? '#eab308' :
-                             (colE && colE.trim().toUpperCase() === 'Y') ? '#10b981' : '#6b7280';
+            const pinColor = (colC && colC.trim().toUpperCase() === 'Y') ? '#2563eb' :
+                             (colD && colD.trim().toUpperCase() === 'Y') ? '#d97706' :
+                             (colE && colE.trim().toUpperCase() === 'Y') ? '#059669' : '#4b5563';
 
             const el = document.createElement('div');
             el.className = 'custom-marker';
