@@ -16,7 +16,7 @@
 
   <style>
     * { box-sizing: border-box; }
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #121212; }
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #09090b; }
     #map { width: 100vw; height: 100vh; }
 
     /* Personalizzazione Popup per Tema Scuro */
@@ -24,16 +24,16 @@
       padding: 0 !important;
       border-radius: 16px !important;
       max-width: 260px !important;
-      background: #1e1e1e !important;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5) !important;
+      background: #18181b !important;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6) !important;
       border: 1px solid rgba(255, 255, 255, 0.12);
       overflow: hidden;
     }
 
-    .mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: #1e1e1e !important; }
-    .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: #1e1e1e !important; }
-    .mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: #1e1e1e !important; }
-    .mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: #1e1e1e !important; }
+    .mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: #18181b !important; }
+    .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: #18181b !important; }
+    .mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: #18181b !important; }
+    .mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: #18181b !important; }
     
     .mapboxgl-popup-close-button {
       color: #ffffff;
@@ -48,12 +48,12 @@
     .popup-card {
       display: flex;
       flex-direction: column;
-      background: #1e1e1e;
+      background: #18181b;
     }
     .popup-img-wrapper {
       width: 100%;
       height: 130px;
-      background-color: #2a2a2a;
+      background-color: #27272a;
     }
     .popup-img {
       width: 100%;
@@ -73,7 +73,7 @@
     .popup-location {
       font-size: 12px;
       font-weight: 500;
-      color: #9ca3af;
+      color: #a1a1aa;
     }
 
     .custom-marker {
@@ -100,33 +100,9 @@
 
   const googleSheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
 
-  // Stile Raster Dark ad alta velocità e affidaiblità
   const map = new mapboxgl.Map({
     container: 'map',
-    style: {
-      version: 8,
-      sources: {
-        'carto-dark': {
-          type: 'raster',
-          tiles: [
-            'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-            'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-            'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
-          ],
-          tileSize: 256,
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        }
-      },
-      layers: [
-        {
-          id: 'carto-dark-layer',
-          type: 'raster',
-          source: 'carto-dark',
-          minzoom: 0,
-          maxzoom: 19
-        }
-      ]
-    },
+    style: 'mapbox://styles/mapbox/dark-v11',
     center: [15.0, 50.0],
     zoom: 3.8
   });
@@ -141,6 +117,8 @@
   }
 
   map.on('load', () => {
+    map.resize();
+
     Papa.parse(googleSheetCsvUrl, {
       download: true,
       header: false,
@@ -166,7 +144,6 @@
           const country = row[8] ? row[8].trim() : '';
           let imgUrl = row[11] ? row[11].trim() : '';
 
-          // Fallback se l'URL non è presente o non è valido
           if (!imgUrl || !imgUrl.startsWith('http')) {
             imgUrl = 'https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600';
           }
