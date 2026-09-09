@@ -16,8 +16,8 @@
 
   <style>
     * { box-sizing: border-box; }
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #09090b; }
-    #map { width: 100vw; height: 100vh; }
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #09090b; }
+    #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
 
     /* Personalizzazione Popup per Tema Scuro */
     .mapboxgl-popup-content {
@@ -25,7 +25,7 @@
       border-radius: 16px !important;
       max-width: 260px !important;
       background: #18181b !important;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6) !important;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7) !important;
       border: 1px solid rgba(255, 255, 255, 0.12);
       overflow: hidden;
     }
@@ -109,15 +109,11 @@
 
   map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
 
-  function getMarkerColor(colC, colD, colE) {
-    if (colC && colC.trim().toUpperCase() === 'Y') return '#3b82f6'; // Blu
-    if (colD && colD.trim().toUpperCase() === 'Y') return '#eab308'; // Giallo
-    if (colE && colE.trim().toUpperCase() === 'Y') return '#10b981'; // Verde
-    return '#6b7280'; // Grigio
-  }
-
+  // Forza il ricalcolo del canvas al caricamento e al ridimensionamento
   map.on('load', () => {
-    map.resize();
+    setTimeout(() => {
+      map.resize();
+    }, 200);
 
     Papa.parse(googleSheetCsvUrl, {
       download: true,
@@ -149,7 +145,9 @@
           }
 
           if (!isNaN(lat) && !isNaN(lng)) {
-            const pinColor = getMarkerColor(colC, colD, colE);
+            const pinColor = (colC && colC.trim().toUpperCase() === 'Y') ? '#3b82f6' :
+                             (colD && colD.trim().toUpperCase() === 'Y') ? '#eab308' :
+                             (colE && colE.trim().toUpperCase() === 'Y') ? '#10b981' : '#6b7280';
 
             const el = document.createElement('div');
             el.className = 'custom-marker';
@@ -176,6 +174,10 @@
         }
       }
     });
+  });
+
+  window.addEventListener('resize', () => {
+    map.resize();
   });
 </script>
 
