@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mappa Mapbox Europa - Dark Mode</title>
+  <title>Mappa Europa - Dark Mode</title>
   
   <!-- Mapbox GL JS -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
@@ -100,17 +100,38 @@
 
   const googleSheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
 
+  // Stile Raster Dark ad alta velocità e affidaiblità
   const map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/navigation-night-v1', // Stile Dark stabile e ultra-dettagliato
+    style: {
+      version: 8,
+      sources: {
+        'carto-dark': {
+          type: 'raster',
+          tiles: [
+            'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+            'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+            'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
+          ],
+          tileSize: 256,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        }
+      },
+      layers: [
+        {
+          id: 'carto-dark-layer',
+          type: 'raster',
+          source: 'carto-dark',
+          minzoom: 0,
+          maxzoom: 19
+        }
+      ]
+    },
     center: [15.0, 50.0],
     zoom: 3.8
   });
 
   map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
-
-  // Forza il ridimensionamento corretto della mappa dopo il caricamento
-  window.addEventListener('resize', () => map.resize());
 
   function getMarkerColor(colC, colD, colE) {
     if (colC && colC.trim().toUpperCase() === 'Y') return '#3b82f6'; // Blu
@@ -120,8 +141,6 @@
   }
 
   map.on('load', () => {
-    map.resize();
-    
     Papa.parse(googleSheetCsvUrl, {
       download: true,
       header: false,
@@ -145,7 +164,12 @@
           const lng = parseFloat(rawLng);
           
           const country = row[8] ? row[8].trim() : '';
-          const imgUrl = row[11] ? row[11].trim() : '';
+          let imgUrl = row[11] ? row[11].trim() : '';
+
+          // Fallback se l'URL non è presente o non è valido
+          if (!imgUrl || !imgUrl.startsWith('http')) {
+            imgUrl = 'https://images.unsplash.com/photo-1477959858617-67f30ac4ce71?w=600';
+          }
 
           if (!isNaN(lat) && !isNaN(lng)) {
             const pinColor = getMarkerColor(colC, colD, colE);
@@ -154,11 +178,9 @@
             el.className = 'custom-marker';
             el.style.backgroundColor = pinColor;
 
-            let popupContent = '<div class="popup-card">';
-            if (imgUrl && imgUrl.startsWith('http')) {
-              popupContent += `<div class="popup-img-wrapper"><img src="${imgUrl}" alt="${city}" class="popup-img" /></div>`;
-            }
-            popupContent += '<div class="popup-body">';
+            let popupContent = `<div class="popup-card">
+              <div class="popup-img-wrapper"><img src="${imgUrl}" alt="${city}" class="popup-img" /></div>
+              <div class="popup-body">`;
             if (locationName) {
               popupContent += `<div class="popup-title">${locationName}</div>`;
             }
