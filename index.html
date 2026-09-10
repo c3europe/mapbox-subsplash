@@ -214,10 +214,10 @@
 (function() {
   mapboxgl.accessToken = 'pk.eyJ1IjoiYzNldXJvcGUiLCJhIjoiY210c2x6c3M4MDBmYjJ5c2hkbGk3MTJsNSJ9.r-mcV9eA6pvHoK1-Hqr-3A';
 
+  // Endpoint leggermente più rapido per l'esportazione dati Google
   const googleSheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
   const DEFAULT_IMAGE = 'https://images.pexels.com/photos/46160/field-clouds-sky-earth-46160.jpeg?auto=compress&cs=tinysrgb&w=800';
 
-  // Palette di colori con identificativo di classe CSS
   const PALETTE = {
     blue: { id: 'blue', core: '#38bdf8', glow: '#0284c7' },
     amber: { id: 'amber', core: '#fbbf24', glow: '#d97706' },
@@ -225,6 +225,7 @@
     gray: { id: 'gray', core: '#9ca3af', glow: '#4b5563' }
   };
 
+  // 1. INIZIALIZZA LA MAPPA
   const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/dark-v11',
@@ -234,82 +235,86 @@
 
   map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
+  // 2. AVVIA IL PARSING PARALLELO SUBITO (senza attendere il render della mappa)
   Papa.parse(googleSheetCsvUrl, {
     download: true,
     header: false,
     skipEmptyLines: true,
+    fastMode: true, // Velocizza la scansione delle righe
     complete: function(results) {
       const rows = results.data;
 
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-
-        const locationName = row[1] ? row[1].trim() : '';
-        const colC = row[2] ? row[2].trim() : '';
-        const colD = row[3] ? row[3].trim() : '';
-        const colE = row[4] ? row[4].trim() : '';
-        
-        const city = row[5] ? row[5].trim() : '';
-        const country = row[8] ? row[8].trim() : '';
-        const imageUrl = row[11] ? row[11].trim() : DEFAULT_IMAGE;
-
-        const rawLat = row[6] ? row[6].toString().replace(',', '.') : '';
-        const rawLng = row[7] ? row[7].toString().replace(',', '.') : '';
-        
-        const lat = parseFloat(rawLat);
-        const lng = parseFloat(rawLng);
-
-        if (!isNaN(lat) && !isNaN(lng)) {
-          const colorTheme = (colC && colC.toUpperCase() === 'Y') ? PALETTE.blue :
-                             (colD && colD.toUpperCase() === 'Y') ? PALETTE.amber :
-                             (colE && colE.toUpperCase() === 'Y') ? PALETTE.emerald : PALETTE.gray;
-
-          // Marker Elements
-          const markerWrapper = document.createElement('div');
-          markerWrapper.className = 'custom-marker';
-
-          const markerInner = document.createElement('div');
-          markerInner.className = 'marker-inner';
-
-          const glowEl = document.createElement('div');
-          glowEl.className = 'marker-glow';
-          glowEl.style.backgroundColor = colorTheme.glow;
-
-          const coreEl = document.createElement('div');
-          coreEl.className = 'marker-core';
-          coreEl.style.backgroundColor = colorTheme.core;
-
-          markerInner.appendChild(glowEl);
-          markerInner.appendChild(coreEl);
-          markerWrapper.appendChild(markerInner);
-
-          // HTML del Popup associato alla classe del colore del Pin
-          let popupContent = `<div class="popup-card popup-theme-${colorTheme.id}">
-            <div class="popup-img-wrapper">
-              <img src="${imageUrl}" alt="${city || country}" class="popup-img" onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}';" />
-            </div>
-            <div class="popup-body">`;
-          
-          if (locationName) {
-            popupContent += `<div class="popup-title">${locationName}</div>`;
-          }
-          if (city || country) {
-            popupContent += `<div class="popup-location">📍 ${city}${city && country ? ', ' : ''}${country}</div>`;
-          }
-          popupContent += '</div></div>';
-
-          const popup = new mapboxgl.Popup({ offset: 14 }).setHTML(popupContent);
-
-          new mapboxgl.Marker({ element: markerWrapper })
-            .setLngLat([lng, lat])
-            .setPopup(popup)
-            .addTo(map);
-        }
+      // Se la mappa non è ancora pronta, attendiamo un istante prima di iniettare i marker
+      if (!map.loaded()) {
+        map.once('load', () => renderMarkers(rows));
+      } else {
+        renderMarkers(rows);
       }
     }
   });
+
+  function renderMarkers(rows) {
+    // Usa un ciclo ottimizzato
+    for (let i = 1, len = rows.length; i < len; i++) {
+      const row = rows[i];
+
+      const rawLat = row[6] ? row[6].toString().replace(',', '.') : '';
+      const rawLng = row[7] ? row[7].toString().replace(',', '.') : '';
+      const lat = parseFloat(rawLat);
+      const lng = parseFloat(rawLng);
+
+      if (isNaN(lat) || isNaN(lng)) continue;
+
+      const locationName = row[1] ? row[1].trim() : '';
+      const colC = row[2] ? row[2].trim() : '';
+      const colD = row[3] ? row[3].trim() : '';
+      const colE = row[4] ? row[4].trim() : '';
+      const city = row[5] ? row[5].trim() : '';
+      const country = row[8] ? row[8].trim() : '';
+      const imageUrl = row[11] ? row[11].trim() : DEFAULT_IMAGE;
+
+      const colorTheme = (colC && colC.toUpperCase() === 'Y') ? PALETTE.blue :
+                         (colD && colD.toUpperCase() === 'Y') ? PALETTE.amber :
+                         (colE && colE.toUpperCase() === 'Y') ? PALETTE.emerald : PALETTE.gray;
+
+      // Costruzione sintetica del Marker
+      const markerWrapper = document.createElement('div');
+      markerWrapper.className = 'custom-marker';
+      markerWrapper.innerHTML = `
+        <div class="marker-inner">
+          <div class="marker-glow" style="background-color: ${colorTheme.glow};"></div>
+          <div class="marker-core" style="background-color: ${colorTheme.core};"></div>
+        </div>
+      `;
+
+      // Costruzione sintetica del Popup
+      let locText = '';
+      if (city || country) {
+        locText = `<div class="popup-location">📍 ${city}${city && country ? ', ' : ''}${country}</div>`;
+      }
+      
+      const popupContent = `
+        <div class="popup-card popup-theme-${colorTheme.id}">
+          <div class="popup-img-wrapper">
+            <img src="${imageUrl}" alt="${city || country}" class="popup-img" loading="lazy" onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}';" />
+          </div>
+          <div class="popup-body">
+            ${locationName ? `<div class="popup-title">${locationName}</div>` : ''}
+            ${locText}
+          </div>
+        </div>
+      `;
+
+      const popup = new mapboxgl.Popup({ offset: 14, focusAfterOpen: false }).setHTML(popupContent);
+
+      new mapboxgl.Marker({ element: markerWrapper })
+        .setLngLat([lng, lat])
+        .setPopup(popup)
+        .addTo(map);
+    }
+  }
 })();
 </script>
-
+  
 </body>
 </html>
