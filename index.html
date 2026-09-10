@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mappa Europa - Mapbox Custom Style</title>
+  <title>Mappa Europa - Dark Aesthetic</title>
   
   <!-- Mapbox GL JS CSS & JS -->
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.2/mapbox-gl.css" rel="stylesheet" />
@@ -17,37 +17,56 @@
 
   <style>
     * { box-sizing: border-box; }
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #e5e7eb; }
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #0d1117; }
     #map { width: 100vw; height: 100vh; }
 
-    /* Custom Styling dei Popup Mapbox */
+    /* Custom Popup Mapbox - Dark Glassmorphism */
     .mapboxgl-popup {
       max-width: 260px !important;
     }
     .mapboxgl-popup-content {
       padding: 0 !important;
       border-radius: 16px !important;
-      background: #ffffff !important;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2) !important;
+      background: rgba(22, 27, 34, 0.95) !important;
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
       overflow: hidden;
+      color: #f3f4f6;
+    }
+    .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+      border-top-color: rgba(22, 27, 34, 0.95) !important;
+    }
+    .mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+      border-bottom-color: rgba(22, 27, 34, 0.95) !important;
+    }
+    .mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+      border-right-color: rgba(22, 27, 34, 0.95) !important;
+    }
+    .mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+      border-left-color: rgba(22, 27, 34, 0.95) !important;
     }
     .mapboxgl-popup-close-button {
-      color: #374151 !important;
+      color: #9ca3af !important;
       font-size: 18px !important;
       padding: 6px 10px 0 0 !important;
       z-index: 10;
       outline: none;
     }
+    .mapboxgl-popup-close-button:hover {
+      color: #ffffff !important;
+      background: transparent !important;
+    }
 
     .popup-card {
       display: flex;
       flex-direction: column;
-      background: #ffffff;
+      background: transparent;
     }
     .popup-img-wrapper {
       width: 100%;
       height: 130px;
-      background-color: #e5e7eb;
+      background-color: #1f2937;
       position: relative;
       overflow: hidden;
     }
@@ -63,28 +82,74 @@
     .popup-title {
       font-size: 15px;
       font-weight: 700;
-      color: #111827;
+      color: #f9fafb;
       margin: 0 0 4px 0;
       line-height: 1.3;
     }
     .popup-location {
       font-size: 12px;
       font-weight: 500;
-      color: #6b7280;
+      color: #9ca3af;
     }
 
-    /* Pin Custom */
-    .marker-pin {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      border: 2px solid #ffffff;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    /* ==========================================
+       PIN AESTHETIC & NEON GLOW
+       ========================================== */
+    .marker-container {
+      position: relative;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
-      transition: transform 0.2s ease;
     }
-    .marker-pin:hover {
-      transform: scale(1.3);
+
+    /* Halo con trasparenza ed effetto bagliore */
+    .marker-glow {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      opacity: 0.35;
+      filter: blur(4px);
+      transition: all 0.3s ease;
+      animation: pulseGlow 3s infinite ease-in-out;
+    }
+
+    /* Pin centrale fisico */
+    .marker-core {
+      position: relative;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 2;
+    }
+
+    /* Animazione e Hover */
+    .marker-container:hover .marker-core {
+      transform: scale(1.4);
+      border-color: #ffffff;
+    }
+
+    .marker-container:hover .marker-glow {
+      opacity: 0.7;
+      transform: scale(1.5);
+      filter: blur(6px);
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% {
+        transform: scale(1);
+        opacity: 0.35;
+      }
+      50% {
+        transform: scale(1.2);
+        opacity: 0.55;
+      }
     }
   </style>
 </head>
@@ -93,24 +158,31 @@
 <div id="map"></div>
 
 <script>
-  // 1. Inserisci il tuo Access Token Mapbox
+  // Access Token Mapbox
   mapboxgl.accessToken = 'pk.eyJ1IjoiYzNldXJvcGUiLCJhIjoiY210c2tyZ2poMDAxbzJ5czY5dGs3eTV5dCJ9.Uk7aRGqXFeka71nMjQHwzA';
 
   const googleSheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
   const DEFAULT_IMAGE = 'https://images.pexels.com/photos/46160/field-clouds-sky-earth-46160.jpeg?auto=compress&cs=tinysrgb&w=800';
 
-  // 2. Inizializza la mappa applicando lo stile di Mapbox Studio
+  // Palette di colori moderna/aesthetic per Dark Mode
+  const PALETTE = {
+    blue: { core: '#38bdf8', glow: '#0284c7' },   // Ciano / Electric Blue
+    amber: { core: '#fbbf24', glow: '#d97706' },  // Warm Amber / Gold
+    emerald: { core: '#34d399', glow: '#059669' },// Soft Emerald
+    gray: { core: '#9ca3af', glow: '#4b5563' }    // Slate Muted
+  };
+
+  // Inizializza Mappa Dark
   const map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/dark-v11', // Il tuo stile personalizzato
-    center: [15.0, 50.0], // [Longitudine, Latitudine]
+    style: 'mapbox://styles/mapbox/dark-v11',
+    center: [15.0, 50.0],
     zoom: 4
   });
 
-  // Aggiunge i controlli di zoom in alto a destra
   map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-  // 3. Lettura dei dati dal CSV Google Sheets
+  // Caricamento dati
   Papa.parse(googleSheetCsvUrl, {
     download: true,
     header: false,
@@ -128,7 +200,7 @@
         
         const city = row[5] ? row[5].trim() : '';
         const country = row[8] ? row[8].trim() : '';
-        const imageUrl = row[11] ? row[11].trim() : DEFAULT_IMAGE; // Colonna L gestita da Apps Script
+        const imageUrl = row[11] ? row[11].trim() : DEFAULT_IMAGE;
 
         const rawLat = row[6] ? row[6].toString().replace(',', '.') : '';
         const rawLng = row[7] ? row[7].toString().replace(',', '.') : '';
@@ -137,17 +209,27 @@
         const lng = parseFloat(rawLng);
 
         if (!isNaN(lat) && !isNaN(lng)) {
-          // Determina il colore del pin in base alle colonne C, D, E
-          const pinColor = (colC && colC.toUpperCase() === 'Y') ? '#2563eb' :
-                           (colD && colD.toUpperCase() === 'Y') ? '#d97706' :
-                           (colE && colE.toUpperCase() === 'Y') ? '#059669' : '#4b5563';
+          // Assegna colore della palette
+          const colorTheme = (colC && colC.toUpperCase() === 'Y') ? PALETTE.blue :
+                             (colD && colD.toUpperCase() === 'Y') ? PALETTE.amber :
+                             (colE && colE.toUpperCase() === 'Y') ? PALETTE.emerald : PALETTE.gray;
 
-          // Crea elemento DOM per il marker
-          const el = document.createElement('div');
-          el.className = 'marker-pin';
-          el.style.backgroundColor = pinColor;
+          // Crea l'elemento DOM per il marker custom
+          const markerContainer = document.createElement('div');
+          markerContainer.className = 'marker-container';
 
-          // HTML del Popup
+          const glowEl = document.createElement('div');
+          glowEl.className = 'marker-glow';
+          glowEl.style.backgroundColor = colorTheme.glow;
+
+          const coreEl = document.createElement('div');
+          coreEl.className = 'marker-core';
+          coreEl.style.backgroundColor = colorTheme.core;
+
+          markerContainer.appendChild(glowEl);
+          markerContainer.appendChild(coreEl);
+
+          // Popup HTML con Dark Glassmorphism
           let popupContent = `<div class="popup-card">
             <div class="popup-img-wrapper">
               <img src="${imageUrl}" alt="${city || country}" class="popup-img" onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}';" />
@@ -162,10 +244,9 @@
           }
           popupContent += '</div></div>';
 
-          const popup = new mapboxgl.Popup({ offset: 12 }).setHTML(popupContent);
+          const popup = new mapboxgl.Popup({ offset: 14 }).setHTML(popupContent);
 
-          // In Mapbox le coordinate sono ordinate come [Longitudine, Latitudine]
-          new mapboxgl.Marker(el)
+          new mapboxgl.Marker(markerContainer)
             .setLngLat([lng, lat])
             .setPopup(popup)
             .addTo(map);
