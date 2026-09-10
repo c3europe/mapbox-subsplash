@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Politica di referrer per garantire la trasmissione del dominio anche su Safari/iFrame -->
   <meta name="referrer" content="no-referrer-when-downgrade" />
   <title>Mappa Europa - Dark Aesthetic</title>
   
@@ -39,23 +38,18 @@
       border-radius: 16px !important;
       background: rgba(22, 27, 34, 0.95) !important;
       backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1) !important;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
       overflow: hidden;
       color: #f3f4f6;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
     }
-    .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
-      border-top-color: rgba(22, 27, 34, 0.95) !important;
-    }
-    .mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
-      border-bottom-color: rgba(22, 27, 34, 0.95) !important;
-    }
-    .mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
-      border-right-color: rgba(22, 27, 34, 0.95) !important;
-    }
-    .mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
-      border-left-color: rgba(22, 27, 34, 0.95) !important;
-    }
+
+    /* Freccia del Popup ereditata dal container */
+    .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: rgba(22, 27, 34, 0.95) !important; }
+    .mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: rgba(22, 27, 34, 0.95) !important; }
+    .mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: rgba(22, 27, 34, 0.95) !important; }
+    .mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: rgba(22, 27, 34, 0.95) !important; }
+
     .mapboxgl-popup-close-button {
       color: #9ca3af !important;
       font-size: 18px !important;
@@ -72,7 +66,62 @@
       display: flex;
       flex-direction: column;
       background: transparent;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
+
+    /* VARIANTI COLORE PER I POPUP */
+    /* Blue Theme (Ciano) */
+    .popup-theme-blue {
+      border-color: rgba(56, 189, 248, 0.4);
+      box-shadow: 0 8px 25px rgba(56, 189, 248, 0.15);
+    }
+    .popup-theme-blue .popup-location { color: #38bdf8; }
+    .popup-theme-blue .popup-img-wrapper::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0.1) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* Amber Theme (Giallo / Arancio) */
+    .popup-theme-amber {
+      border-color: rgba(251, 191, 36, 0.4);
+      box-shadow: 0 8px 25px rgba(251, 191, 36, 0.15);
+    }
+    .popup-theme-amber .popup-location { color: #fbbf24; }
+    .popup-theme-amber .popup-img-wrapper::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(180deg, rgba(251, 191, 36, 0.1) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* Emerald Theme (Verde) */
+    .popup-theme-emerald {
+      border-color: rgba(52, 211, 153, 0.4);
+      box-shadow: 0 8px 25px rgba(52, 211, 153, 0.15);
+    }
+    .popup-theme-emerald .popup-location { color: #34d399; }
+    .popup-theme-emerald .popup-img-wrapper::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(180deg, rgba(52, 211, 153, 0.1) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* Gray Theme (Grigio Slate) */
+    .popup-theme-gray {
+      border-color: rgba(156, 163, 175, 0.3);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+    .popup-theme-gray .popup-location { color: #9ca3af; }
+
+    /* Struttura interna Popup */
     .popup-img-wrapper {
       width: 100%;
       height: 130px;
@@ -98,21 +147,16 @@
     }
     .popup-location {
       font-size: 12px;
-      font-weight: 500;
-      color: #9ca3af;
+      font-weight: 600;
+      letter-spacing: 0.2px;
     }
 
-    /* ==========================================
-       STRUTTURA MARKER SENZA POSSIBILITÀ DI FLUTTUAZIONE
-       ========================================== */
-    /* Il wrapper gestito da Mapbox deve avere dimensione zero */
+    /* STRUTTURA MARKER */
     .custom-marker {
       width: 0;
       height: 0;
       position: relative;
     }
-
-    /* Il contenuto del pin viene centrato rispetto al punto (0,0) del wrapper */
     .marker-inner {
       position: absolute;
       top: -12px;
@@ -124,8 +168,6 @@
       justify-content: center;
       cursor: pointer;
     }
-
-    /* Halo con trasparenza ed effetto bagliore */
     .marker-glow {
       position: absolute;
       width: 22px;
@@ -137,8 +179,6 @@
       animation: pulseGlow 3s infinite ease-in-out;
       pointer-events: none;
     }
-
-    /* Pin centrale fisico */
     .marker-core {
       position: relative;
       width: 12px;
@@ -150,13 +190,10 @@
       z-index: 2;
       pointer-events: none;
     }
-
-    /* Animazione e Hover */
     .marker-inner:hover .marker-core {
       transform: scale(1.4);
       border-color: #ffffff;
     }
-
     .marker-inner:hover .marker-glow {
       opacity: 0.75;
       transform: scale(1.5);
@@ -164,14 +201,8 @@
     }
 
     @keyframes pulseGlow {
-      0%, 100% {
-        transform: scale(1);
-        opacity: 0.35;
-      }
-      50% {
-        transform: scale(1.25);
-        opacity: 0.6;
-      }
+      0%, 100% { transform: scale(1); opacity: 0.35; }
+      50% { transform: scale(1.25); opacity: 0.6; }
     }
   </style>
 </head>
@@ -186,15 +217,14 @@
   const googleSheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
   const DEFAULT_IMAGE = 'https://images.pexels.com/photos/46160/field-clouds-sky-earth-46160.jpeg?auto=compress&cs=tinysrgb&w=800';
 
-  // Palette di colori per Dark Mode
+  // Palette di colori con identificativo di classe CSS
   const PALETTE = {
-    blue: { core: '#38bdf8', glow: '#0284c7' },   // Ciano / Electric Blue
-    amber: { core: '#fbbf24', glow: '#d97706' },  // Warm Amber
-    emerald: { core: '#34d399', glow: '#059669' },// Soft Emerald
-    gray: { core: '#9ca3af', glow: '#4b5563' }    // Slate Muted
+    blue: { id: 'blue', core: '#38bdf8', glow: '#0284c7' },
+    amber: { id: 'amber', core: '#fbbf24', glow: '#d97706' },
+    emerald: { id: 'emerald', core: '#34d399', glow: '#059669' },
+    gray: { id: 'gray', core: '#9ca3af', glow: '#4b5563' }
   };
 
-  // Inizializza Mappa Dark
   const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/dark-v11',
@@ -204,7 +234,6 @@
 
   map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-  // Lettura e parsing del CSV da Google Sheets
   Papa.parse(googleSheetCsvUrl, {
     download: true,
     header: false,
@@ -235,7 +264,7 @@
                              (colD && colD.toUpperCase() === 'Y') ? PALETTE.amber :
                              (colE && colE.toUpperCase() === 'Y') ? PALETTE.emerald : PALETTE.gray;
 
-          // Contenitore vuoto di dimensione zero per eliminare la fluttuazione
+          // Marker Elements
           const markerWrapper = document.createElement('div');
           markerWrapper.className = 'custom-marker';
 
@@ -254,8 +283,8 @@
           markerInner.appendChild(coreEl);
           markerWrapper.appendChild(markerInner);
 
-          // Popup
-          let popupContent = `<div class="popup-card">
+          // HTML del Popup associato alla classe del colore del Pin
+          let popupContent = `<div class="popup-card popup-theme-${colorTheme.id}">
             <div class="popup-img-wrapper">
               <img src="${imageUrl}" alt="${city || country}" class="popup-img" onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}';" />
             </div>
@@ -271,7 +300,6 @@
 
           const popup = new mapboxgl.Popup({ offset: 14 }).setHTML(popupContent);
 
-          // Aggiunge il marker agganciandolo al punto esatto (0,0) del wrapper
           new mapboxgl.Marker({ element: markerWrapper })
             .setLngLat([lng, lat])
             .setPopup(popup)
