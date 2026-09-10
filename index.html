@@ -17,7 +17,15 @@
 
   <style>
     * { box-sizing: border-box; }
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #0d1117; }
+    body, html { 
+      margin: 0; 
+      padding: 0; 
+      width: 100%; 
+      height: 100%; 
+      overflow: hidden; 
+      font-family: 'Inter', sans-serif; 
+      background-color: #0d1117; 
+    }
     #map { width: 100vw; height: 100vh; }
 
     /* Custom Popup Mapbox - Dark Glassmorphism */
@@ -93,7 +101,7 @@
     }
 
     /* ==========================================
-       PIN AESTHETIC & NEON GLOW
+       PIN AESTHETIC & NEON GLOW (FIX ANCORAGGIO)
        ========================================== */
     .marker-container {
       position: relative;
@@ -103,11 +111,14 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      transform: translate(0, 0); 
     }
 
     /* Halo con trasparenza ed effetto bagliore */
     .marker-glow {
       position: absolute;
+      top: 1px;
+      left: 1px;
       width: 22px;
       height: 22px;
       border-radius: 50%;
@@ -115,6 +126,7 @@
       filter: blur(4px);
       transition: all 0.3s ease;
       animation: pulseGlow 3s infinite ease-in-out;
+      pointer-events: none;
     }
 
     /* Pin centrale fisico */
@@ -123,10 +135,11 @@
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      border: 2px solid rgba(255, 255, 255, 0.9);
+      border: 2px solid rgba(255, 255, 255, 0.95);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
       transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
       z-index: 2;
+      pointer-events: none;
     }
 
     /* Animazione e Hover */
@@ -136,7 +149,7 @@
     }
 
     .marker-container:hover .marker-glow {
-      opacity: 0.7;
+      opacity: 0.75;
       transform: scale(1.5);
       filter: blur(6px);
     }
@@ -147,8 +160,8 @@
         opacity: 0.35;
       }
       50% {
-        transform: scale(1.2);
-        opacity: 0.55;
+        transform: scale(1.25);
+        opacity: 0.6;
       }
     }
   </style>
@@ -158,16 +171,16 @@
 <div id="map"></div>
 
 <script>
-  // Access Token Mapbox
-  mapboxgl.accessToken = 'pk.eyJ1IjoiYzNldXJvcGUiLCJhIjoiY210c2tyZ2poMDAxbzJ5czY5dGs3eTV5dCJ9.Uk7aRGqXFeka71nMjQHwzA';
+  // Access Token Mapbox (Sostituisci con il tuo token pubblico)
+  mapboxgl.accessToken = 'pk.eyJ1IjoiYzNldXJvcGUiLCJhIjoiY210c2x6c3M4MDBmYjJ5c2hkbGk3MTJsNSJ9.r-mcV9eA6pvHoK1-Hqr-3A';
 
   const googleSheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
   const DEFAULT_IMAGE = 'https://images.pexels.com/photos/46160/field-clouds-sky-earth-46160.jpeg?auto=compress&cs=tinysrgb&w=800';
 
-  // Palette di colori moderna/aesthetic per Dark Mode
+  // Palette di colori per Dark Mode
   const PALETTE = {
     blue: { core: '#38bdf8', glow: '#0284c7' },   // Ciano / Electric Blue
-    amber: { core: '#fbbf24', glow: '#d97706' },  // Warm Amber / Gold
+    amber: { core: '#fbbf24', glow: '#d97706' },  // Warm Amber
     emerald: { core: '#34d399', glow: '#059669' },// Soft Emerald
     gray: { core: '#9ca3af', glow: '#4b5563' }    // Slate Muted
   };
@@ -182,7 +195,7 @@
 
   map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-  // Caricamento dati
+  // Lettura e parsing del CSV da Google Sheets
   Papa.parse(googleSheetCsvUrl, {
     download: true,
     header: false,
@@ -200,7 +213,7 @@
         
         const city = row[5] ? row[5].trim() : '';
         const country = row[8] ? row[8].trim() : '';
-        const imageUrl = row[11] ? row[11].trim() : DEFAULT_IMAGE;
+        const imageUrl = row[11] ? row[11].trim() : DEFAULT_IMAGE; // Colonna L gestita da Apps Script
 
         const rawLat = row[6] ? row[6].toString().replace(',', '.') : '';
         const rawLng = row[7] ? row[7].toString().replace(',', '.') : '';
@@ -209,12 +222,12 @@
         const lng = parseFloat(rawLng);
 
         if (!isNaN(lat) && !isNaN(lng)) {
-          // Assegna colore della palette
+          // Assegna colore della palette in base alle colonne C, D, E
           const colorTheme = (colC && colC.toUpperCase() === 'Y') ? PALETTE.blue :
                              (colD && colD.toUpperCase() === 'Y') ? PALETTE.amber :
                              (colE && colE.toUpperCase() === 'Y') ? PALETTE.emerald : PALETTE.gray;
 
-          // Crea l'elemento DOM per il marker custom
+          // Elementi DOM per il Marker Aesthetic
           const markerContainer = document.createElement('div');
           markerContainer.className = 'marker-container';
 
@@ -229,7 +242,7 @@
           markerContainer.appendChild(glowEl);
           markerContainer.appendChild(coreEl);
 
-          // Popup HTML con Dark Glassmorphism
+          // Contenuto Popup
           let popupContent = `<div class="popup-card">
             <div class="popup-img-wrapper">
               <img src="${imageUrl}" alt="${city || country}" class="popup-img" onerror="this.onerror=null;this.src='${DEFAULT_IMAGE}';" />
@@ -246,7 +259,8 @@
 
           const popup = new mapboxgl.Popup({ offset: 14 }).setHTML(popupContent);
 
-          new mapboxgl.Marker(markerContainer)
+          // Marker ancorato perfettamente al centro
+          new mapboxgl.Marker({ element: markerContainer, anchor: 'center' })
             .setLngLat([lng, lat])
             .setPopup(popup)
             .addTo(map);
