@@ -214,8 +214,7 @@
 (function() {
   mapboxgl.accessToken = 'pk.eyJ1IjoiYzNldXJvcGUiLCJhIjoiY210c2x6c3M4MDBmYjJ5c2hkbGk3MTJsNSJ9.r-mcV9eA6pvHoK1-Hqr-3A';
 
-  // Endpoint leggermente più rapido per l'esportazione dati Google
-  const googleSheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
+  const BASE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
   const DEFAULT_IMAGE = 'https://images.pexels.com/photos/46160/field-clouds-sky-earth-46160.jpeg?auto=compress&cs=tinysrgb&w=800';
 
   const PALETTE = {
@@ -225,7 +224,6 @@
     gray: { id: 'gray', core: '#9ca3af', glow: '#4b5563' }
   };
 
-  // 1. INIZIALIZZA LA MAPPA
   const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/dark-v11',
@@ -235,26 +233,37 @@
 
   map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-  // 2. AVVIA IL PARSING PARALLELO SUBITO (senza attendere il render della mappa)
-  Papa.parse(googleSheetCsvUrl, {
-    download: true,
-    header: false,
-    skipEmptyLines: true,
-    fastMode: true, // Velocizza la scansione delle righe
-    complete: function(results) {
-      const rows = results.data;
+  // Funzione per recuperare il CSV senza blocchi di cache/409
+  function fetchSheetData(attempts = 0) {
+    // Genera un parametro anti-cache basato sul timestamp per evitare il blocco 409
+    const cacheBusterUrl = `${BASE_CSV_URL}&_cb=${Date.now()}`;
 
-      // Se la mappa non è ancora pronta, attendiamo un istante prima di iniettare i marker
-      if (!map.loaded()) {
-        map.once('load', () => renderMarkers(rows));
-      } else {
-        renderMarkers(rows);
+    Papa.parse(cacheBusterUrl, {
+      download: true,
+      header: false,
+      skipEmptyLines: true,
+      fastMode: true,
+      complete: function(results) {
+        if (results && results.data && results.data.length > 0) {
+          if (!map.loaded()) {
+            map.once('load', () => renderMarkers(results.data));
+          } else {
+            renderMarkers(results.data);
+          }
+        }
+      },
+      error: function(err) {
+        // Se Google Sheets restituisce 409 o un errore temporaneo, ritenta automaticamente fino a 3 volte
+        if (attempts < 3) {
+          setTimeout(() => fetchSheetData(attempts + 1), 400);
+        } else {
+          console.warn('Impossibile recuperare i dati da Google Sheets:', err);
+        }
       }
-    }
-  });
+    });
+  }
 
   function renderMarkers(rows) {
-    // Usa un ciclo ottimizzato
     for (let i = 1, len = rows.length; i < len; i++) {
       const row = rows[i];
 
@@ -277,7 +286,6 @@
                          (colD && colD.toUpperCase() === 'Y') ? PALETTE.amber :
                          (colE && colE.toUpperCase() === 'Y') ? PALETTE.emerald : PALETTE.gray;
 
-      // Costruzione sintetica del Marker
       const markerWrapper = document.createElement('div');
       markerWrapper.className = 'custom-marker';
       markerWrapper.innerHTML = `
@@ -287,7 +295,6 @@
         </div>
       `;
 
-      // Costruzione sintetica del Popup
       let locText = '';
       if (city || country) {
         locText = `<div class="popup-location">📍 ${city}${city && country ? ', ' : ''}${country}</div>`;
@@ -313,6 +320,9 @@
         .addTo(map);
     }
   }
+
+  // Avvio richiesta dati
+  fetchSheetData();
 })();
 </script>
   
