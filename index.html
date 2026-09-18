@@ -264,7 +264,8 @@
   mapboxgl.accessToken = 'pk.eyJ1IjoiYzNldXJvcGUiLCJhIjoiY210c2x6c3M4MDBmYjJ5c2hkbGk3MTJsNSJ9.r-mcV9eA6pvHoK1-Hqr-3A';
   const BASE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSSzVWcvI8VEYjn53K4V2Y4gWoNZnP6vjFxKOHZo0e7s4o7gZZrePoDQnAL3cZB-0TnBuSo8b_xu1LC/pub?output=csv';
   const DEFAULT_IMAGE = 'https://images.pexels.com/photos/46160/field-clouds-sky-earth-46160.jpeg?auto=compress&cs=tinysrgb&w=600';
-  
+  const CACHE_KEY = 'europe_map_csv_cache';
+
   const PALETTE = {
     blue: { id: 'blue', core: '#38bdf8', glow: '#0284c7' },
     amber: { id: 'amber', core: '#fbbf24', glow: '#d97706' },
@@ -309,11 +310,10 @@
     }
   }
 
-  // Promise per il download e parsing simultaneo del CSV
+  // Promise per il download e parsing in background del CSV fresco
   function fetchSheetDataPromise(attempts = 0) {
     return new Promise((resolve, reject) => {
-      const timeKey = Math.floor(Date.now() / 10000); 
-      const csvUrl = `${BASE_CSV_URL}&_t=${timeKey}`;
+      const csvUrl = `${BASE_CSV_URL}&_t=${Date.now()}`;
 
       function executeFetch() {
         if (typeof Papa === 'undefined') {
@@ -362,16 +362,42 @@
     });
   }
 
-  // SINCRONIZZAZIONE: Mappa e CSV caricati in parallelo
-  Promise.all([fetchSheetDataPromise(), mapStyleLoadedPromise()])
-    .then(([csvData]) => {
-      rawSheetData = csvData;
+  // 1. CARICAMENTO ISTANTANEO DA LOCALSTORAGE
+  const cachedDataStr = localStorage.getItem(CACHE_KEY);
+  let localCacheData = null;
+  if (cachedDataStr) {
+    try {
+      localCacheData = JSON.parse(cachedDataStr);
+    } catch(e) {
+      localCacheData = null;
+    }
+  }
+
+  if (localCacheData) {
+    mapStyleLoadedPromise().then(() => {
+      rawSheetData = localCacheData;
       preloadImages(rawSheetData);
       renderMarkers(rawSheetData);
       forceMapResize();
+    });
+  }
+
+  // 2. AGGIORNAMENTO TRASPARENTE IN BACKGROUND
+  Promise.all([fetchSheetDataPromise(), mapStyleLoadedPromise()])
+    .then(([freshCsvData]) => {
+      const freshDataStr = JSON.stringify(freshCsvData);
+      
+      // Aggiorna la vista e il salvataggio se i dati differiscono o se la cache era vuota
+      if (!cachedDataStr || cachedDataStr !== freshDataStr) {
+        localStorage.setItem(CACHE_KEY, freshDataStr);
+        rawSheetData = freshCsvData;
+        preloadImages(rawSheetData);
+        renderMarkers(rawSheetData);
+        forceMapResize();
+      }
     })
     .catch((err) => {
-      console.warn('Errore durante l\'inizializzazione sincrona:', err);
+      console.warn('Errore durante il recupero dei dati freschi:', err);
     });
 
   // Gestione cambio tema dinamico
