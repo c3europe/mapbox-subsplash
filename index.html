@@ -312,7 +312,7 @@
   // Promise per il download e parsing simultaneo del CSV
   function fetchSheetDataPromise(attempts = 0) {
     return new Promise((resolve, reject) => {
-      const timeKey = Math.floor(Date.now() / 60000); 
+      const timeKey = Math.floor(Date.now() / 10000); 
       const csvUrl = `${BASE_CSV_URL}&_t=${timeKey}`;
 
       function executeFetch() {
