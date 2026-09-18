@@ -104,7 +104,7 @@
       50% { transform: scale(1.25); opacity: 0.6; }
     }
 
-    /* MINI PIN NEL POPUP (SENZA GLOW) */
+    /* MINI PIN NEL POPUP */
     .popup-pin-icon {
       width: 12px;
       height: 12px;
@@ -274,7 +274,6 @@
 
   let activePopup = null;
   let rawSheetData = null;
-  let markersRendered = false;
 
   const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   const initialStyle = isDarkMode ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11';
@@ -288,40 +287,18 @@
 
   map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-  // Gestione dinamica dimensioni canvas
   function forceMapResize() {
-    if (map) {
-      map.resize();
-    }
+    if (map) map.resize();
   }
 
-  map.on('load', forceMapResize);
-  map.on('idle', forceMapResize);
   window.addEventListener('resize', forceMapResize);
-
   const mapElem = document.getElementById('map');
   if (mapElem && window.ResizeObserver) {
     const ro = new ResizeObserver(() => forceMapResize());
     ro.observe(mapElem);
   }
 
-  // Monitora il cambio tema OS
-  if (window.matchMedia) {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-      const newStyle = event.matches ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11';
-      markersRendered = false;
-      map.setStyle(newStyle);
-    });
-  }
-
-  map.on('style.load', () => {
-    forceMapResize();
-    if (rawSheetData && !markersRendered) {
-      renderMarkers(rawSheetData);
-    }
-  });
-
-  // Pre-caricamento veloce immagini
+  // Pre-caricamento istantaneo delle immagini
   function preloadImages(rows) {
     for (let i = 1, len = rows.length; i < len; i++) {
       const imageUrl = rows[i][11] ? rows[i][11].trim() : DEFAULT_IMAGE;
@@ -332,46 +309,89 @@
     }
   }
 
-  function fetchSheetData(attempts = 0) {
-    if (typeof Papa === 'undefined') {
-      if (attempts < 10) {
-        setTimeout(() => fetchSheetData(attempts + 1), 200);
-      }
-      return;
-    }
+  // Promise per il download e parsing simultaneo del CSV
+  function fetchSheetDataPromise(attempts = 0) {
+    return new Promise((resolve, reject) => {
+      const timeKey = Math.floor(Date.now() / 60000); 
+      const csvUrl = `${BASE_CSV_URL}&_t=${timeKey}`;
 
-    const timeKey = Math.floor(Date.now() / 60000); 
-    const csvUrl = `${BASE_CSV_URL}&_t=${timeKey}`;
-
-    Papa.parse(csvUrl, {
-      download: true,
-      header: false,
-      skipEmptyLines: true,
-      fastMode: true,
-      complete: function(results) {
-        if (results && results.data && results.data.length > 0) {
-          rawSheetData = results.data;
-          
-          preloadImages(rawSheetData);
-
-          if (map.isStyleLoaded()) {
-            renderMarkers(rawSheetData);
+      function executeFetch() {
+        if (typeof Papa === 'undefined') {
+          if (attempts < 10) {
+            setTimeout(executeFetch, 100);
           } else {
-            map.once('idle', () => renderMarkers(rawSheetData));
+            reject('PapaParse non caricato');
           }
+          return;
         }
-      },
-      error: function(err) {
-        if (attempts < 3) {
-          setTimeout(() => fetchSheetData(attempts + 1), 500);
-        }
+
+        Papa.parse(csvUrl, {
+          download: true,
+          header: false,
+          skipEmptyLines: true,
+          fastMode: true,
+          complete: function(results) {
+            if (results && results.data && results.data.length > 0) {
+              resolve(results.data);
+            } else {
+              reject('CSV vuoto');
+            }
+          },
+          error: function(err) {
+            if (attempts < 3) {
+              setTimeout(() => fetchSheetDataPromise(attempts + 1).then(resolve).catch(reject), 300);
+            } else {
+              reject(err);
+            }
+          }
+        });
+      }
+
+      executeFetch();
+    });
+  }
+
+  // Promise per l'evento di caricamento mappa (style.load)
+  function mapStyleLoadedPromise() {
+    return new Promise((resolve) => {
+      if (map.isStyleLoaded()) {
+        resolve();
+      } else {
+        map.once('style.load', resolve);
       }
     });
   }
 
+  // SINCRONIZZAZIONE: Mappa e CSV caricati in parallelo
+  Promise.all([fetchSheetDataPromise(), mapStyleLoadedPromise()])
+    .then(([csvData]) => {
+      rawSheetData = csvData;
+      preloadImages(rawSheetData);
+      renderMarkers(rawSheetData);
+      forceMapResize();
+    })
+    .catch((err) => {
+      console.warn('Errore durante l\'inizializzazione sincrona:', err);
+    });
+
+  // Gestione cambio tema dinamico
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+      const newStyle = event.matches ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11';
+      map.setStyle(newStyle);
+      mapStyleLoadedPromise().then(() => {
+        if (rawSheetData) {
+          renderMarkers(rawSheetData);
+          forceMapResize();
+        }
+      });
+    });
+  }
+
   function renderMarkers(rows) {
-    if (markersRendered) return;
-    markersRendered = true;
+    // Pulisci eventuali marker precedenti prima di ridisegnare
+    const existingMarkers = document.querySelectorAll('.custom-marker');
+    existingMarkers.forEach(m => m.remove());
 
     for (let i = 1, len = rows.length; i < len; i++) {
       const row = rows[i];
@@ -459,11 +479,8 @@
         }
       });
     }
-
-    setTimeout(forceMapResize, 300);
   }
 
-  fetchSheetData();
 })();
 </script>
   
